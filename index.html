@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PaghiUsA Hall App by LE SERRASPBERRY PI</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-900 text-white flex flex-col items-center justify-center min-h-screen p-6">
+
+    <!-- Header -->
+    <div class="text-center mb-6">
+        <h1 class="text-4xl font-bold">Real-Time Capacity & Temperature Tracker</h1>
+        <p class="text-lg text-gray-400">PaghiUsA Hall App by LE SERRASPBERRY PI</p>
+    </div>
+
+    <!-- Status Indicator -->
+    <div id="statusBox" class="p-4 rounded-xl w-80 text-center text-xl font-semibold bg-green-600">
+        🟢 Safe - Normal Conditions
+    </div>
+
+    <!-- Main Data Display -->
+    <div class="flex space-x-6 mt-6">
+        <div class="p-6 bg-gray-800 rounded-xl shadow-lg text-center">
+            <h2 class="text-2xl font-bold">Current Capacity</h2>
+            <p id="capacity" class="text-5xl mt-2 font-extrabold text-blue-400">Loading...</p>
+        </div>
+        <div class="p-6 bg-gray-800 rounded-xl shadow-lg text-center">
+            <h2 class="text-2xl font-bold">Temperature</h2>
+            <p id="temperature" class="text-5xl mt-2 font-extrabold text-red-400">Loading...</p>
+        </div>
+    </div>
+
+    <!-- Settings -->
+    <div class="mt-8 p-6 bg-gray-800 rounded-xl shadow-lg w-96 text-center">
+        <h2 class="text-2xl font-bold">Settings</h2>
+        <input id="maxCapacityInput" type="number" placeholder="Set Max Capacity" class="w-full p-2 mt-4 rounded bg-gray-700 text-white">
+        <button onclick="updateMaxCapacity()" class="mt-4 bg-blue-500 px-4 py-2 rounded text-white w-full">Update Capacity Limit</button>
+        <button onclick="resetCount()" class="mt-4 bg-red-500 px-4 py-2 rounded text-white w-full">Reset Current Count</button>
+    </div>
+
+    <!-- Event Logs -->
+    <div class="mt-8 w-full max-w-2xl p-6 bg-gray-800 rounded-xl shadow-lg">
+        <h2 class="text-2xl font-bold mb-4">Event Logs (Today)</h2>
+        <div id="logs" class="h-64 overflow-y-auto text-gray-300 bg-gray-700 p-4 rounded-lg">
+            <p class="text-green-400">🟢 [00:00] System Initialized.</p>
+        </div>
+    </div>
+
+    <script>
+        let maxCapacity = 10; // Default maximum capacity
+
+        function updateMaxCapacity() {
+            const input = document.getElementById('maxCapacityInput').value;
+            if (input) {
+                maxCapacity = parseInt(input);
+                addLog(`🔧 Updated max capacity to ${maxCapacity}.`);
+            }
+        }
+
+        function resetCount() {
+            fetch('http://localhost:5000/reset', { method: 'POST' });
+            addLog("🔄 Count has been reset.");
+        }
+
+        function addLog(message) {
+            const logs = document.getElementById('logs');
+            const time = new Date().toLocaleTimeString();
+            const entry = document.createElement('p');
+            entry.innerHTML = `${message.replace('[time]', time)}`;
+            logs.prepend(entry);
+        }
+
+        function updateDashboard() {
+            fetch('http://localhost:5000/data')
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('capacity').innerText = data.capacity;
+                    document.getElementById('temperature').innerText = `${data.temperature}°C`;
+
+                    let statusBox = document.getElementById('statusBox');
+
+                    if (data.capacity < maxCapacity * 0.8) {
+                        statusBox.innerText = "🟢 Safe - Normal Conditions";
+                        statusBox.className = "p-4 rounded-xl w-80 text-center text-xl font-semibold bg-green-600";
+                    } else if (data.capacity < maxCapacity) {
+                        statusBox.innerText = "🟡 Warning - Near Capacity";
+                        statusBox.className = "p-4 rounded-xl w-80 text-center text-xl font-semibold bg-yellow-500";
+                    } else {
+                        statusBox.innerText = "🔴 Danger - Overcrowded!";
+                        statusBox.className = "p-4 rounded-xl w-80 text-center text-xl font-semibold bg-red-600";
+                        addLog(`🔴 [${new Date().toLocaleTimeString()}] Capacity reached ${data.capacity}! Overcrowding Alert!`);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching data:', error);
+                });
+        }
+
+        setInterval(updateDashboard, 2000);
+        updateDashboard();
+    </script>
+</body>
+</html>
